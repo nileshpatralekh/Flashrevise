@@ -14,8 +14,11 @@ export async function fetchRepoData(token, owner, repo, path = 'saved-flashcards
         });
 
         if (!response.ok) {
+            console.error('GitHub Fetch Error:', response.status, response.statusText);
             if (response.status === 404) return null; // File doesn't exist yet
-            throw new Error(`GitHub API Error: ${response.statusText}`);
+            const errBody = await response.text();
+            console.error('Error Body:', errBody);
+            throw new Error(`GitHub API Error: ${response.status} ${response.statusText}`);
         }
 
         const data = await response.json();
