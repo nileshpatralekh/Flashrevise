@@ -30,12 +30,32 @@ export const useStore = create(
                 set(state => ({
                     fsConfig: {
                         ...state.fsConfig,
-                        dirHandle: handle, // Keep ref
-                        folderName: handle.name,
+                        dirHandle: handle,
+                        folderName: handle.name || 'Local Folder',
                         hasPermission: granted,
                         error: null
                     }
                 }));
+            },
+
+            // Attempt to restore handle from IDB on boot
+            restoreHandle: async () => {
+                const { getDirectoryHandle: getFromIDB, verifyPermission } = await import('../lib/filesystem.js');
+                const handle = await getFromIDB();
+                if (handle) {
+                    // We have a stored handle!
+                    // On reload, permission is usually 'prompt', which counts as false for 'hasPermission' until verified
+                    const granted = await verifyPermission(handle, false); // check existing without prompting
+                    set(state => ({
+                        fsConfig: {
+                            ...state.fsConfig,
+                            dirHandle: handle,
+                            folderName: handle.name || 'Local Folder',
+                            hasPermission: granted,
+                            error: null
+                        }
+                    }));
+                }
             },
 
             // REPLACES syncToGithub

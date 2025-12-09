@@ -6,8 +6,12 @@ import { Settings } from './components/Settings.js';
 import { ArrowLeft, BookOpen, Settings as SettingsIcon } from 'lucide-react';
 
 export default function App() {
-    const { currentView, navigate } = useStore();
+    const { currentView, navigate, restoreHandle } = useStore();
     const [showSettings, setShowSettings] = React.useState(false);
+
+    React.useEffect(() => {
+        restoreHandle();
+    }, [restoreHandle]);
 
     const handleBack = () => {
         // Simple back logic: go up one level
