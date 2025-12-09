@@ -3,11 +3,12 @@ import { useStore } from '../store/useStore.js';
 import { Button } from './ui/Button.js';
 import { Input } from './ui/Input.js';
 import { Card } from './ui/Card.js';
-import { Save, RefreshCw, X, CheckCircle, AlertCircle, Folder } from 'lucide-react';
-import { selectDirectory } from '../lib/filesystem.js';
+import { Save, RefreshCw, X, CheckCircle, AlertCircle, Folder, Activity } from 'lucide-react';
+import { selectDirectory, diagnoseFileSystem } from '../lib/filesystem.js';
 
 export function Settings({ onClose }) {
     const { fsConfig, saveToDisk, setDirHandle } = useStore();
+    const [diagLog, setDiagLog] = useState(null);
 
     const handleSelectFolder = async () => {
         const handle = await selectDirectory();
@@ -15,6 +16,13 @@ export function Settings({ onClose }) {
             await setDirHandle(handle);
             saveToDisk(handle); // Initial save/test
         }
+    };
+
+    const handleDiagnose = async () => {
+        if (!fsConfig.dirHandle) return;
+        setDiagLog(['Running diagnostics...']);
+        const result = await diagnoseFileSystem(fsConfig.dirHandle);
+        setDiagLog(result.logs);
     };
 
     return React.createElement('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4' },
@@ -41,9 +49,17 @@ export function Settings({ onClose }) {
                         'Select a folder on your device. Your flashcards will be saved there as real nested files.'
                     ),
 
-                    React.createElement(Button, { onClick: handleSelectFolder, className: 'w-full' },
+                    React.createElement(Button, { onClick: handleSelectFolder, className: 'w-full mb-2' },
                         React.createElement(Folder, { size: 16, className: 'mr-2' }),
                         fsConfig.folderName ? 'Change Folder' : 'Select Folder'
+                    ),
+
+                    fsConfig.folderName && React.createElement(Button, { onClick: handleDiagnose, variant: 'outline', size: 'sm', className: 'w-full text-xs' },
+                        React.createElement(Activity, { size: 14, className: 'mr-2' }), 'Test Write Permissions'
+                    ),
+
+                    diagLog && React.createElement('div', { className: 'mt-4 bg-black/50 p-3 rounded text-xs font-mono text-slate-300 max-h-32 overflow-y-auto' },
+                        diagLog.map((line, i) => React.createElement('div', { key: i }, line))
                     )
                 ),
 
