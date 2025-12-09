@@ -32,7 +32,10 @@ export function Settings({ onClose }) {
                         React.createElement('div', { className: 'p-2 bg-blue-500/20 rounded-full text-blue-400' },
                             React.createElement(Folder, { size: 24 })
                         ),
-                        React.createElement('h3', { className: 'font-semibold' }, 'Local File System')
+                        React.createElement('div', null,
+                            React.createElement('h3', { className: 'font-semibold' }, 'Local File System'),
+                            fsConfig.folderName && React.createElement('p', { className: 'text-xs text-green-400 font-mono' }, fsConfig.folderName)
+                        )
                     ),
                     React.createElement('p', { className: 'text-sm text-slate-400 mb-4' },
                         'Select a folder on your device. Your flashcards will be saved there as real nested files.'
@@ -40,7 +43,7 @@ export function Settings({ onClose }) {
 
                     React.createElement(Button, { onClick: handleSelectFolder, className: 'w-full' },
                         React.createElement(Folder, { size: 16, className: 'mr-2' }),
-                        fsConfig.hasPermission ? 'Change Folder' : 'Select Folder'
+                        fsConfig.folderName ? 'Change Folder' : 'Select Folder'
                     )
                 ),
 

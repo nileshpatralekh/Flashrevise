@@ -28,7 +28,13 @@ export const useStore = create(
                 if (!handle) return;
                 const granted = await verifyPermission(handle);
                 set(state => ({
-                    fsConfig: { ...state.fsConfig, hasPermission: granted, error: null }
+                    fsConfig: {
+                        ...state.fsConfig,
+                        dirHandle: handle, // Keep ref
+                        folderName: handle.name,
+                        hasPermission: granted,
+                        error: null
+                    }
                 }));
             },
 
