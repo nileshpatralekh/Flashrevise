@@ -49,32 +49,44 @@ export function Settings({ onClose }) {
                         'Select a folder on your device. Your flashcards will be saved there as real nested files.'
                     ),
 
-                    React.createElement(Button, { onClick: handleSelectFolder, className: 'w-full mb-2' },
+                    React.createElement(Button, { onClick: handleSelectFolder, className: 'w-full mb-4' },
                         React.createElement(Folder, { size: 16, className: 'mr-2' }),
                         fsConfig.folderName ? 'Change Folder' : 'Select Folder'
                     ),
 
-                    fsConfig.folderName && React.createElement(Button, { onClick: handleDiagnose, variant: 'outline', size: 'sm', className: 'w-full text-xs mb-2' },
-                        React.createElement(Activity, { size: 14, className: 'mr-2' }), 'Test Write Permissions'
-                    ),
-
-                    fsConfig.folderName && React.createElement(Button, {
-                        onClick: async () => {
-                            try {
-                                setDiagLog(['Saving...']);
-                                await saveToDisk();
-                                setDiagLog(prev => [...prev || [], 'Save Success! check folder now.']);
-                                alert("Save Successful!");
-                            } catch (e) {
-                                setDiagLog(prev => [...prev || [], `Save Failed: ${e.message}`]);
-                                alert(`Save Failed: ${e.message}`);
-                            }
+                    React.createElement('div', { className: 'border-t border-slate-700/50 pt-4 space-y-2' },
+                        React.createElement('h4', { className: 'text-xs font-semibold text-slate-500 uppercase tracking-wider' }, 'Diagnostics'),
+                        React.createElement(Button, {
+                            onClick: handleDiagnose,
+                            variant: 'outline',
+                            size: 'sm',
+                            className: 'w-full text-xs',
+                            disabled: !fsConfig.dirHandle
                         },
-                        variant: 'secondary',
-                        size: 'sm',
-                        className: 'w-full text-xs'
-                    },
-                        React.createElement(Save, { size: 14, className: 'mr-2' }), 'Force Save Now'
+                            React.createElement(Activity, { size: 14, className: 'mr-2' }), 'Test Write Permissions'
+                        ),
+
+                        React.createElement(Button, {
+                            onClick: async () => {
+                                try {
+                                    setDiagLog(['Saving...']);
+                                    console.log('Force saving...');
+                                    await saveToDisk();
+                                    setDiagLog(prev => [...prev || [], 'Save Success! check folder now.']);
+                                    alert("Save Successful!");
+                                } catch (e) {
+                                    console.error(e);
+                                    setDiagLog(prev => [...prev || [], `Save Failed: ${e.message}`]);
+                                    alert(`Save Failed: ${e.message}`);
+                                }
+                            },
+                            variant: 'secondary',
+                            size: 'sm',
+                            className: 'w-full text-xs',
+                            disabled: !fsConfig.dirHandle
+                        },
+                            React.createElement(Save, { size: 14, className: 'mr-2' }), 'Force Save Now'
+                        )
                     ),
 
                     fsConfig.error && React.createElement('div', { className: 'mt-2 p-2 bg-red-500/20 text-red-300 text-xs rounded border border-red-500/50' },
@@ -85,6 +97,10 @@ export function Settings({ onClose }) {
                     diagLog && React.createElement('div', { className: 'mt-4 bg-black/50 p-3 rounded text-xs font-mono text-slate-300 max-h-32 overflow-y-auto' },
                         diagLog.map((line, i) => React.createElement('div', { key: i }, line))
                     )
+                ),
+
+                React.createElement('div', { className: 'mt-4 text-center' },
+                    React.createElement('span', { className: 'text-[10px] text-slate-600 font-mono' }, 'v1.2-DEBUG-BUILD')
                 ),
 
                 React.createElement('div', { className: 'border-t border-slate-700 my-4' }),
