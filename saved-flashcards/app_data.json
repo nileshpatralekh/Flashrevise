@@ -1,0 +1,38 @@
+[
+  {
+    "id": "e53097b3-4240-439a-a40e-b1d36d82e5bb",
+    "title": "test",
+    "subjects": [
+      {
+        "id": "38d98ecc-4233-462c-875b-8e6233856de9",
+        "title": "test1",
+        "topics": [
+          {
+            "id": "8d32900c-bdab-4078-b0fb-9e47a7ec90b0",
+            "title": "test2",
+            "subtopics": [
+              {
+                "id": "ad0d022f-a603-4e4a-9fd4-c99e9d059c6c",
+                "title": "test3",
+                "flashcards": [
+                  {
+                    "id": "292603bd-c5ff-4f34-bcc6-eec4b3ff315b",
+                    "front": "test4",
+                    "expansion": "test 5",
+                    "image": null,
+                    "createdAt": 1765316077710,
+                    "mastery": 0
+                  }
+                ],
+                "createdAt": 1765316061296
+              }
+            ],
+            "createdAt": 1765316053342
+          }
+        ],
+        "createdAt": 1765316045790
+      }
+    ],
+    "createdAt": 1765316039415
+  }
+]
