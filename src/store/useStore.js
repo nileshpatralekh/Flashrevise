@@ -115,6 +115,16 @@ export const useStore = create(
                 get().saveToDisk(); // Auto-save
             },
 
+            deleteSubject: (goalId, subjectId) => {
+                set((state) => ({
+                    goals: state.goals.map(g => {
+                        if (g.id !== goalId) return g;
+                        return { ...g, subjects: g.subjects.filter(s => s.id !== subjectId) };
+                    })
+                }));
+                get().saveToDisk();
+            },
+
             // Topic Actions
             addTopic: (goalId, subjectId, title) => {
                 set((state) => ({
@@ -133,6 +143,22 @@ export const useStore = create(
                     })
                 }));
                 get().saveToDisk(); // Auto-save
+            },
+
+            deleteTopic: (goalId, subjectId, topicId) => {
+                set((state) => ({
+                    goals: state.goals.map(g => {
+                        if (g.id !== goalId) return g;
+                        return {
+                            ...g,
+                            subjects: g.subjects.map(s => {
+                                if (s.id !== subjectId) return s;
+                                return { ...s, topics: s.topics.filter(t => t.id !== topicId) };
+                            })
+                        };
+                    })
+                }));
+                get().saveToDisk();
             },
 
             // Subtopic Actions
@@ -159,6 +185,28 @@ export const useStore = create(
                     })
                 }));
                 get().saveToDisk(); // Auto-save
+            },
+
+            deleteSubtopic: (goalId, subjectId, topicId, subtopicId) => {
+                set((state) => ({
+                    goals: state.goals.map(g => {
+                        if (g.id !== goalId) return g;
+                        return {
+                            ...g,
+                            subjects: g.subjects.map(s => {
+                                if (s.id !== subjectId) return s;
+                                return {
+                                    ...s,
+                                    topics: s.topics.map(t => {
+                                        if (t.id !== topicId) return t;
+                                        return { ...t, subtopics: t.subtopics.filter(st => st.id !== subtopicId) };
+                                    })
+                                };
+                            })
+                        };
+                    })
+                }));
+                get().saveToDisk();
             },
 
             // Flashcard Actions
@@ -198,6 +246,37 @@ export const useStore = create(
                     })
                 }));
                 get().saveToDisk(); // Auto-save
+            },
+
+            deleteFlashcard: (goalId, subjectId, topicId, subtopicId, cardId) => {
+                set((state) => ({
+                    goals: state.goals.map(g => {
+                        if (g.id !== goalId) return g;
+                        return {
+                            ...g,
+                            subjects: g.subjects.map(s => {
+                                if (s.id !== subjectId) return s;
+                                return {
+                                    ...s,
+                                    topics: s.topics.map(t => {
+                                        if (t.id !== topicId) return t;
+                                        return {
+                                            ...t,
+                                            subtopics: t.subtopics.map(st => {
+                                                if (st.id !== subtopicId) return st;
+                                                return {
+                                                    ...st,
+                                                    flashcards: st.flashcards.filter(c => c.id !== cardId)
+                                                };
+                                            })
+                                        };
+                                    })
+                                };
+                            })
+                        };
+                    })
+                }));
+                get().saveToDisk();
             },
         }),
         {

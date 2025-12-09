@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore.js';
 import { Button } from './ui/Button.js';
 import { Input } from './ui/Input.js';
 import { Card } from './ui/Card.js';
-import { Plus, ChevronRight, Book, Target, Layers, Hash, FileText, Play } from 'lucide-react';
+import { Plus, ChevronRight, Book, Target, Layers, Hash, FileText, Play, Trash2 } from 'lucide-react';
 
 // Icons for each level
 const Icons = {
@@ -15,7 +15,7 @@ const Icons = {
 };
 
 export function HierarchyView() {
-    const { goals, currentView, navigate, addGoal, addSubject, addTopic, addSubtopic, addFlashcard } = useStore();
+    const { goals, currentView, navigate, addGoal, addSubject, addTopic, addSubtopic, addFlashcard, deleteGoal, deleteSubject, deleteTopic, deleteSubtopic, deleteFlashcard } = useStore();
     const [newItemTitle, setNewItemTitle] = useState('');
     const [isAdding, setIsAdding] = useState(false);
 
@@ -109,6 +109,18 @@ export function HierarchyView() {
         setIsAdding(false);
     };
 
+    // Handler for Delete
+    const handleDelete = (e, item) => {
+        e.stopPropagation(); // Prevent navigation click
+        if (!window.confirm(`Delete "${item.title || item.front}"?`)) return;
+
+        if (type === 'home') deleteGoal(item.id);
+        if (type === 'goal') deleteSubject(goal.id, item.id);
+        if (type === 'subject') deleteTopic(goal.id, subject.id, item.id);
+        if (type === 'topic') deleteSubtopic(goal.id, subject.id, topic.id, item.id);
+        if (type === 'subtopic') deleteFlashcard(goal.id, subject.id, topic.id, subtopic.id, item.id);
+    };
+
     // Render List Items
     const renderList = () => {
         const items = type === 'home' ? goals : (type === 'goal' ? data.subjects : (type === 'subject' ? data.topics : data.subtopics));
@@ -118,9 +130,14 @@ export function HierarchyView() {
             return React.createElement('div', { className: 'space-y-4' },
                 data.flashcards.length === 0 && React.createElement('div', { className: 'text-center py-10 text-slate-500' }, 'No flashcards yet. Add one!'),
                 data.flashcards.map(card =>
-                    React.createElement(Card, { key: card.id, className: 'relative group' },
+                    React.createElement(Card, { key: card.id, className: 'relative group pr-10' },
                         React.createElement('div', { className: 'font-medium text-lg mb-2' }, card.front),
-                        React.createElement('div', { className: 'text-slate-400 text-sm border-t border-slate-700/50 pt-2' }, card.expansion)
+                        React.createElement('div', { className: 'text-slate-400 text-sm border-t border-slate-700/50 pt-2' }, card.expansion),
+                        // Flashcard Delete Button
+                        React.createElement('button', {
+                            onClick: (e) => handleDelete(e, card),
+                            className: 'absolute top-3 right-3 text-slate-500 hover:text-red-400 p-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity'
+                        }, React.createElement(Trash2, { size: 16 }))
                     )
                 )
             );
@@ -136,7 +153,7 @@ export function HierarchyView() {
                         type === 'home' ? 'goal' : (type === 'goal' ? 'subject' : (type === 'subject' ? 'topic' : 'subtopic')),
                         item.id
                     ),
-                    className: 'bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition-all active:scale-[0.98]'
+                    className: 'group bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition-all active:scale-[0.98]'
                 },
                     React.createElement('div', { className: 'flex items-center gap-3' },
                         React.createElement('div', { className: 'p-2 rounded-lg bg-blue-500/10 text-blue-400' },
@@ -148,7 +165,16 @@ export function HierarchyView() {
                         ),
                         React.createElement('span', { className: 'font-medium' }, item.title)
                     ),
-                    React.createElement(ChevronRight, { size: 16, className: 'text-slate-500' })
+
+                    React.createElement('div', { className: 'flex items-center gap-2' },
+                        // Delete Button (Hierarchy)
+                        React.createElement('button', {
+                            onClick: (e) => handleDelete(e, item),
+                            className: 'text-slate-500 hover:text-red-400 p-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity'
+                        }, React.createElement(Trash2, { size: 18 })),
+
+                        React.createElement(ChevronRight, { size: 16, className: 'text-slate-500' })
+                    )
                 )
             )
         );
