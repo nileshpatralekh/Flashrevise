@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { generateId } from '../lib/utils.js';
 
 // Import our new filesystem logic
-import { saveToLocalDir, verifyPermission, getDirectoryHandle } from '../lib/filesystem.js';
+import { saveToLocalDir, verifyPermission, getDirectoryHandle, deleteItem } from '../lib/filesystem.js';
 
 // Helper to find item in array
 const find = (arr, id) => arr.find(item => item.id === id);
@@ -94,11 +94,18 @@ export const useStore = create(
                 get().saveToDisk(); // Auto-save
             },
 
-            deleteGoal: (id) => {
+            deleteGoal: async (id) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === id);
+                if (goal) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) await deleteItem(handle, [goal.title]);
+                }
+
                 set((state) => ({
                     goals: state.goals.filter(g => g.id !== id)
                 }));
-                get().saveToDisk(); // Auto-save
+                get().saveToDisk(); // Update app_data.json
             },
 
             // Subject Actions
@@ -115,7 +122,15 @@ export const useStore = create(
                 get().saveToDisk(); // Auto-save
             },
 
-            deleteSubject: (goalId, subjectId) => {
+            deleteSubject: async (goalId, subjectId) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === goalId);
+                const subject = goal?.subjects.find(s => s.id === subjectId);
+                if (goal && subject) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) await deleteItem(handle, [goal.title, subject.title]);
+                }
+
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -145,7 +160,16 @@ export const useStore = create(
                 get().saveToDisk(); // Auto-save
             },
 
-            deleteTopic: (goalId, subjectId, topicId) => {
+            deleteTopic: async (goalId, subjectId, topicId) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === goalId);
+                const subject = goal?.subjects.find(s => s.id === subjectId);
+                const topic = subject?.topics.find(t => t.id === topicId);
+                if (goal && subject && topic) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) await deleteItem(handle, [goal.title, subject.title, topic.title]);
+                }
+
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -187,7 +211,18 @@ export const useStore = create(
                 get().saveToDisk(); // Auto-save
             },
 
-            deleteSubtopic: (goalId, subjectId, topicId, subtopicId) => {
+            deleteSubtopic: async (goalId, subjectId, topicId, subtopicId) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === goalId);
+                const subject = goal?.subjects.find(s => s.id === subjectId);
+                const topic = subject?.topics.find(t => t.id === topicId);
+                const subtopic = topic?.subtopics.find(st => st.id === subtopicId);
+
+                if (goal && subject && topic && subtopic) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) await deleteItem(handle, [goal.title, subject.title, topic.title, subtopic.title]);
+                }
+
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
