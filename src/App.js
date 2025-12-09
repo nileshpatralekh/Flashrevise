@@ -2,10 +2,12 @@ import React from 'react';
 import { useStore } from './store/useStore.js';
 import { HierarchyView } from './components/HierarchyView.js';
 import { StudyMode } from './components/StudyMode.js';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { Settings } from './components/Settings.js';
+import { ArrowLeft, BookOpen, Settings as SettingsIcon } from 'lucide-react';
 
 export default function App() {
     const { currentView, navigate } = useStore();
+    const [showSettings, setShowSettings] = React.useState(false);
 
     const handleBack = () => {
         // Simple back logic: go up one level
@@ -34,6 +36,11 @@ export default function App() {
                     )
                 ),
 
+                React.createElement('button', {
+                    onClick: () => setShowSettings(true),
+                    className: 'p-2 rounded-full hover:bg-slate-800 transition-colors text-slate-400 hover:text-white'
+                }, React.createElement(SettingsIcon, { size: 20 })),
+
                 React.createElement('div', { className: 'w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400' },
                     React.createElement(BookOpen, { size: 16 })
                 )
@@ -45,6 +52,9 @@ export default function App() {
             currentView.type === 'study'
                 ? React.createElement(StudyMode)
                 : React.createElement(HierarchyView)
-        )
+        ),
+
+        // Settings Modal
+        showSettings && React.createElement(Settings, { onClose: () => setShowSettings(false) })
     );
 }
