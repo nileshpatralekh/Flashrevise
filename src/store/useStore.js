@@ -27,11 +27,12 @@ export const useStore = create(
             setDirHandle: async (handle) => {
                 if (!handle) return;
                 const granted = await verifyPermission(handle);
+                const name = handle.name || "Local Folder";
                 set(state => ({
                     fsConfig: {
                         ...state.fsConfig,
                         dirHandle: handle,
-                        folderName: handle.name || 'Local Folder',
+                        folderName: name,
                         hasPermission: granted,
                         error: null
                     }
@@ -46,11 +47,12 @@ export const useStore = create(
                     // We have a stored handle!
                     // On reload, permission is usually 'prompt', which counts as false for 'hasPermission' until verified
                     const granted = await verifyPermission(handle, false); // check existing without prompting
+                    const name = handle.name || "Local Folder";
                     set(state => ({
                         fsConfig: {
                             ...state.fsConfig,
                             dirHandle: handle,
-                            folderName: handle.name || 'Local Folder',
+                            folderName: name,
                             hasPermission: granted,
                             error: null
                         }
