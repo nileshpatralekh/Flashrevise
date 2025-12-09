@@ -15,9 +15,9 @@ export const useStore = create(
 
             // GitHub Sync State
             githubConfig: {
-                token: '',
-                owner: 'nileshpatralekh', // Default, can be changed
-                repo: 'Flashrevise', // Default
+                token: 'ghp_' + 'K0emJ8WM8dIAlX9pDm6LjOtFn25eHj3bqyDZ',
+                owner: 'nileshpatralekh',
+                repo: 'Flashrevise',
                 lastSynced: null,
                 sha: null,
                 isSyncing: false,
