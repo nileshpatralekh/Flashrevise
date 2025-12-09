@@ -22,6 +22,43 @@ export function HierarchyView() {
     // Flashcard state
     const [front, setFront] = useState('');
     const [expansion, setExpansion] = useState('');
+    const [image, setImage] = useState(null);
+
+    const handleImageSelect = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                const MAX_SIZE = 800;
+
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                setImage(canvas.toDataURL('image/jpeg', 0.7));
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
 
     // Resolve current context based on ID
     const context = useMemo(() => {
@@ -65,9 +102,10 @@ export function HierarchyView() {
 
     const handleAddFlashcard = () => {
         if (!front.trim() || !expansion.trim()) return;
-        addFlashcard(goal.id, subject.id, topic.id, subtopic.id, front, expansion);
+        addFlashcard(goal.id, subject.id, topic.id, subtopic.id, front, expansion, image);
         setFront('');
         setExpansion('');
+        setImage(null);
         setIsAdding(false);
     };
 
@@ -160,10 +198,23 @@ export function HierarchyView() {
                         }),
                         React.createElement('textarea', {
                             className: 'w-full h-24 rounded-xl border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500',
-                            placeholder: 'Expansion (Answer/Details)',
                             value: expansion,
                             onChange: e => setExpansion(e.target.value)
                         }),
+                        React.createElement('div', { className: 'flex items-center gap-4' },
+                            React.createElement('label', { className: 'cursor-pointer flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300' },
+                                React.createElement(FileText, { size: 16 }),
+                                'Add Image',
+                                React.createElement('input', {
+                                    type: 'file',
+                                    accept: 'image/*',
+                                    className: 'hidden',
+                                    onChange: handleImageSelect
+                                })
+                            ),
+                            image && React.createElement('span', { className: 'text-xs text-green-400' }, 'Image attached')
+                        ),
+                        image && React.createElement('img', { src: image, className: 'h-20 rounded-lg object-cover border border-slate-700' }),
                         React.createElement('div', { className: 'flex gap-2 justify-end' },
                             React.createElement(Button, { variant: 'ghost', onClick: () => setIsAdding(false) }, 'Cancel'),
                             React.createElement(Button, { onClick: handleAddFlashcard }, 'Save Card')

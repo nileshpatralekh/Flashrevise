@@ -97,6 +97,10 @@ export function StudyMode() {
                             style: { backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }
                         },
                             React.createElement('div', { className: 'text-sm text-purple-400 uppercase tracking-wider font-semibold mb-4' }, 'Answer'),
+                            currentCard.image && React.createElement('img', {
+                                src: currentCard.image,
+                                className: 'max-h-40 rounded-lg mb-4 object-contain shadow-lg'
+                            }),
                             React.createElement('div', { className: 'text-xl text-slate-200' }, currentCard.expansion)
                         )
                     )

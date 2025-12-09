@@ -75,7 +75,7 @@ export const useStore = create(
             })),
 
             // Flashcard Actions
-            addFlashcard: (goalId, subjectId, topicId, subtopicId, front, expansion) => set((state) => ({
+            addFlashcard: (goalId, subjectId, topicId, subtopicId, front, expansion, image = null) => set((state) => ({
                 goals: state.goals.map(g => {
                     if (g.id !== goalId) return g;
                     return {
@@ -96,6 +96,7 @@ export const useStore = create(
                                                     id: generateId(),
                                                     front,
                                                     expansion,
+                                                    image,
                                                     createdAt: Date.now(),
                                                     mastery: 0 // 0-5 scale
                                                 }]
