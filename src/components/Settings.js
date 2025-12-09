@@ -54,8 +54,32 @@ export function Settings({ onClose }) {
                         fsConfig.folderName ? 'Change Folder' : 'Select Folder'
                     ),
 
-                    fsConfig.folderName && React.createElement(Button, { onClick: handleDiagnose, variant: 'outline', size: 'sm', className: 'w-full text-xs' },
+                    fsConfig.folderName && React.createElement(Button, { onClick: handleDiagnose, variant: 'outline', size: 'sm', className: 'w-full text-xs mb-2' },
                         React.createElement(Activity, { size: 14, className: 'mr-2' }), 'Test Write Permissions'
+                    ),
+
+                    fsConfig.folderName && React.createElement(Button, {
+                        onClick: async () => {
+                            try {
+                                setDiagLog(['Saving...']);
+                                await saveToDisk();
+                                setDiagLog(prev => [...prev || [], 'Save Success! check folder now.']);
+                                alert("Save Successful!");
+                            } catch (e) {
+                                setDiagLog(prev => [...prev || [], `Save Failed: ${e.message}`]);
+                                alert(`Save Failed: ${e.message}`);
+                            }
+                        },
+                        variant: 'secondary',
+                        size: 'sm',
+                        className: 'w-full text-xs'
+                    },
+                        React.createElement(Save, { size: 14, className: 'mr-2' }), 'Force Save Now'
+                    ),
+
+                    fsConfig.error && React.createElement('div', { className: 'mt-2 p-2 bg-red-500/20 text-red-300 text-xs rounded border border-red-500/50' },
+                        React.createElement(AlertCircle, { size: 12, className: 'inline mr-1' }),
+                        fsConfig.error
                     ),
 
                     diagLog && React.createElement('div', { className: 'mt-4 bg-black/50 p-3 rounded text-xs font-mono text-slate-300 max-h-32 overflow-y-auto' },
