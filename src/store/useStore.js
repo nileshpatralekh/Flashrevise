@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../lib/utils.js';
 
-import { fetchRepoData, saveRepoData } from '../lib/github.js';
+import { fetchRepoData, syncTree } from '../lib/github.js';
 
 // Helper to find item in array
 const find = (arr, id) => arr.find(item => item.id === id);
@@ -55,20 +55,13 @@ export const useStore = create(
             },
 
             syncToGithub: async () => {
-                const { token, owner, repo, sha } = get().githubConfig;
+                const { token, owner, repo } = get().githubConfig;
                 const { goals } = get();
                 if (!token) return;
 
                 set(state => ({ githubConfig: { ...state.githubConfig, isSyncing: true, error: null } }));
                 try {
-                    // First, try to fetch latest SHA to avoid conflicts if we don't have it
-                    let currentSha = sha;
-                    if (!currentSha) {
-                        const existing = await fetchRepoData(token, owner, repo);
-                        if (existing) currentSha = existing.sha;
-                    }
-
-                    const newSha = await saveRepoData(token, owner, repo, goals, currentSha);
+                    const newSha = await syncTree(token, owner, repo, goals);
                     set(state => ({
                         githubConfig: {
                             ...state.githubConfig,
