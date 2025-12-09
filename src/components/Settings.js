@@ -3,17 +3,18 @@ import { useStore } from '../store/useStore.js';
 import { Button } from './ui/Button.js';
 import { Input } from './ui/Input.js';
 import { Card } from './ui/Card.js';
-import { Save, RefreshCw, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Save, RefreshCw, X, CheckCircle, AlertCircle, Folder } from 'lucide-react';
+import { selectDirectory } from '../lib/filesystem.js';
 
 export function Settings({ onClose }) {
-    const { githubConfig, setGithubConfig, syncFromGithub, syncToGithub } = useStore();
-    const [token, setToken] = useState(githubConfig.token);
-    const [repo, setRepo] = useState(githubConfig.repo);
-    const [owner, setOwner] = useState(githubConfig.owner);
+    const { fsConfig, saveToDisk, setDirHandle } = useStore();
 
-    const handleSave = () => {
-        setGithubConfig({ token, repo, owner });
-        syncFromGithub(); // Initial sync
+    const handleSelectFolder = async () => {
+        const handle = await selectDirectory();
+        if (handle) {
+            await setDirHandle(handle);
+            saveToDisk(handle); // Initial save/test
+        }
     };
 
     return React.createElement('div', { className: 'fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4' },
@@ -23,64 +24,47 @@ export function Settings({ onClose }) {
                 className: 'absolute top-4 right-4 text-slate-400 hover:text-white'
             }, React.createElement(X, { size: 20 })),
 
-            React.createElement('h2', { className: 'text-xl font-bold mb-6' }, 'Settings & Sync'),
+            React.createElement('h2', { className: 'text-xl font-bold mb-6' }, 'Storage Settings'),
 
-            React.createElement('div', { className: 'space-y-4' },
-                React.createElement('div', null,
-                    React.createElement('label', { className: 'block text-sm text-slate-400 mb-1' }, 'GitHub Token'),
-                    React.createElement(Input, {
-                        type: 'password',
-                        placeholder: 'ghp_...',
-                        value: token,
-                        onChange: e => setToken(e.target.value)
-                    }),
-                    React.createElement('p', { className: 'text-xs text-slate-500 mt-1' },
-                        'Generate a Personal Access Token (Classic) with "repo" scope.'
-                    )
-                ),
-
-                React.createElement('div', { className: 'grid grid-cols-2 gap-4' },
-                    React.createElement('div', null,
-                        React.createElement('label', { className: 'block text-sm text-slate-400 mb-1' }, 'Owner'),
-                        React.createElement(Input, {
-                            placeholder: 'Username',
-                            value: owner,
-                            onChange: e => setOwner(e.target.value)
-                        })
+            React.createElement('div', { className: 'space-y-6' },
+                React.createElement('div', { className: 'bg-slate-800/50 p-4 rounded-lg border border-slate-700' },
+                    React.createElement('div', { className: 'flex items-center gap-3 mb-2' },
+                        React.createElement('div', { className: 'p-2 bg-blue-500/20 rounded-full text-blue-400' },
+                            React.createElement(Folder, { size: 24 })
+                        ),
+                        React.createElement('h3', { className: 'font-semibold' }, 'Local File System')
                     ),
-                    React.createElement('div', null,
-                        React.createElement('label', { className: 'block text-sm text-slate-400 mb-1' }, 'Repo'),
-                        React.createElement(Input, {
-                            placeholder: 'Repo Name',
-                            value: repo,
-                            onChange: e => setRepo(e.target.value)
-                        })
-                    )
-                ),
+                    React.createElement('p', { className: 'text-sm text-slate-400 mb-4' },
+                        'Select a folder on your device. Your flashcards will be saved there as real nested files.'
+                    ),
 
-                React.createElement(Button, { onClick: handleSave, className: 'w-full' },
-                    React.createElement(Save, { size: 16, className: 'mr-2' }), 'Save & Sync'
+                    React.createElement(Button, { onClick: handleSelectFolder, className: 'w-full' },
+                        React.createElement(Folder, { size: 16, className: 'mr-2' }),
+                        fsConfig.hasPermission ? 'Change Folder' : 'Select Folder'
+                    )
                 ),
 
                 React.createElement('div', { className: 'border-t border-slate-700 my-4' }),
 
                 React.createElement('div', { className: 'flex items-center justify-between' },
                     React.createElement('div', { className: 'text-sm' },
-                        githubConfig.isSyncing ? React.createElement('span', { className: 'text-blue-400 flex items-center gap-2' },
-                            React.createElement(RefreshCw, { size: 14, className: 'animate-spin' }), 'Syncing...'
-                        ) : githubConfig.error ? React.createElement('span', { className: 'text-red-400 flex items-center gap-2' },
-                            React.createElement(AlertCircle, { size: 14 }), 'Sync Error'
-                        ) : githubConfig.lastSynced ? React.createElement('span', { className: 'text-green-400 flex items-center gap-2' },
-                            React.createElement(CheckCircle, { size: 14 }), 'Synced'
-                        ) : React.createElement('span', { className: 'text-slate-500' }, 'Not synced')
+                        fsConfig.isSaving ? React.createElement('span', { className: 'text-blue-400 flex items-center gap-2' },
+                            React.createElement(RefreshCw, { size: 14, className: 'animate-spin' }), 'Saving...'
+                        ) : fsConfig.error ? React.createElement('span', { className: 'text-red-400 flex items-center gap-2' },
+                            React.createElement(AlertCircle, { size: 14 }), 'Save Error'
+                        ) : fsConfig.lastSaved ? React.createElement('span', { className: 'text-green-400 flex items-center gap-2' },
+                            React.createElement(CheckCircle, { size: 14 }), 'Saved Locally'
+                        ) : React.createElement('span', { className: 'text-slate-500' }, 'No folder selected')
                     ),
-                    React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: syncToGithub },
-                        React.createElement(RefreshCw, { size: 16 })
+
+                    // Only show manual save if permission exists
+                    fsConfig.hasPermission && React.createElement(Button, { variant: 'ghost', size: 'sm', onClick: () => saveToDisk() },
+                        React.createElement(Save, { size: 16 })
                     )
                 ),
 
-                githubConfig.error && React.createElement('div', { className: 'text-xs text-red-400 bg-red-500/10 p-2 rounded' },
-                    githubConfig.error
+                fsConfig.error && React.createElement('div', { className: 'text-xs text-red-400 bg-red-500/10 p-2 rounded' },
+                    fsConfig.error
                 )
             )
         )

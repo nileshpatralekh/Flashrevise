@@ -2,7 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../lib/utils.js';
 
-import { fetchRepoData, syncTree } from '../lib/github.js';
+// Import our new filesystem logic
+import { saveToLocalDir, verifyPermission, getDirectoryHandle } from '../lib/filesystem.js';
 
 // Helper to find item in array
 const find = (arr, id) => arr.find(item => item.id === id);
@@ -13,65 +14,72 @@ export const useStore = create(
             goals: [],
             currentView: { type: 'home', id: null }, // Navigation state
 
-            // GitHub Sync State
-            githubConfig: {
-                token: 'ghp_' + 'K0emJ8WM8dIAlX9pDm6LjOtFn25eHj3bqyDZ',
-                owner: 'nileshpatralekh',
-                repo: 'Flashrevise',
-                lastSynced: null,
-                sha: null,
-                isSyncing: false,
-                error: null
+            // Local File System State
+            fsConfig: {
+                dirHandle: null, // Note: Handles are not sizable via simple JSON persist, so we rely on fs.js to load it + runtime state
+                isSaving: false,
+                lastSaved: null,
+                error: null,
+                hasPermission: false
             },
 
-            setGithubConfig: (config) => set(state => ({
-                githubConfig: { ...state.githubConfig, ...config }
-            })),
+            // Action to verify and set the handle
+            setDirHandle: async (handle) => {
+                if (!handle) return;
+                const granted = await verifyPermission(handle);
+                set(state => ({
+                    fsConfig: { ...state.fsConfig, hasPermission: granted, error: null }
+                }));
+            },
 
-            syncFromGithub: async () => {
-                const { token, owner, repo } = get().githubConfig;
-                if (!token) return;
+            // REPLACES syncToGithub
+            saveToDisk: async (manualHandle = null) => {
+                // We either use the passed handle (from user selection) or the one we might re-hydrate (if complex IDB logic allowed)
+                // For this MVP, we need the UI to provide the handle usually, or we retrieve it from IDB at boot.
+                // But handles cannot be stored in Zustand persist (localStorage). They must live in IndexedDB.
+                // We rely on the component or init logic to call setDirHandle with the object from `filesystem.js`.
 
-                set(state => ({ githubConfig: { ...state.githubConfig, isSyncing: true, error: null } }));
-                try {
-                    const result = await fetchRepoData(token, owner, repo);
-                    if (result) {
-                        set(state => ({
-                            goals: result.content,
-                            githubConfig: {
-                                ...state.githubConfig,
-                                sha: result.sha,
-                                lastSynced: Date.now(),
-                                isSyncing: false
-                            }
-                        }));
-                    } else {
-                        // File doesn't exist, maybe first sync. Do nothing to local data, just ready to save.
-                        set(state => ({ githubConfig: { ...state.githubConfig, isSyncing: false } }));
-                    }
-                } catch (error) {
-                    set(state => ({ githubConfig: { ...state.githubConfig, isSyncing: false, error: error.message } }));
+                // NOTE: We cannot easily get the handle from state if it's not serializable. 
+                // We should fetch it from `filesystem.js` helper if needed, or pass it in.
+                // A better pattern: The handle lives in a module-level variable in filesystem.js or we retrieve it from IDB here.
+
+                // Let's assume we retrieve it fresh to ensure we have the complex object.
+                let handle = manualHandle;
+
+                // If not provided, try to get from our IDB helper (purely for the object reference)
+                if (!handle) {
+                    const { getDirectoryHandle } = await import('../lib/filesystem.js');
+                    handle = await getDirectoryHandle();
                 }
-            },
 
-            syncToGithub: async () => {
-                const { token, owner, repo } = get().githubConfig;
+                if (!handle) {
+                    set(state => ({ fsConfig: { ...state.fsConfig, error: "No folder selected" } }));
+                    return;
+                }
+
+                // Verify permission again (just in case)
+                const granted = await verifyPermission(handle);
+                if (!granted) {
+                    set(state => ({ fsConfig: { ...state.fsConfig, hasPermission: false, error: "Permission needed" } }));
+                    return;
+                }
+
                 const { goals } = get();
-                if (!token) return;
+                set(state => ({ fsConfig: { ...state.fsConfig, isSaving: true, error: null } }));
 
-                set(state => ({ githubConfig: { ...state.githubConfig, isSyncing: true, error: null } }));
                 try {
-                    const newSha = await syncTree(token, owner, repo, goals);
+                    await saveToLocalDir(handle, goals);
                     set(state => ({
-                        githubConfig: {
-                            ...state.githubConfig,
-                            sha: newSha,
-                            lastSynced: Date.now(),
-                            isSyncing: false
+                        fsConfig: {
+                            ...state.fsConfig,
+                            lastSaved: Date.now(),
+                            isSaving: false,
+                            hasPermission: true
                         }
                     }));
-                } catch (error) {
-                    set(state => ({ githubConfig: { ...state.githubConfig, isSyncing: false, error: error.message } }));
+                } catch (err) {
+                    console.error("Save error:", err);
+                    set(state => ({ fsConfig: { ...state.fsConfig, isSaving: false, error: err.message } }));
                 }
             },
 
@@ -83,14 +91,14 @@ export const useStore = create(
                 set((state) => ({
                     goals: [...state.goals, { id: generateId(), title, subjects: [], createdAt: Date.now() }]
                 }));
-                get().syncToGithub(); // Auto-save
+                get().saveToDisk(); // Auto-save
             },
 
             deleteGoal: (id) => {
                 set((state) => ({
                     goals: state.goals.filter(g => g.id !== id)
                 }));
-                get().syncToGithub(); // Auto-save
+                get().saveToDisk(); // Auto-save
             },
 
             // Subject Actions
@@ -104,7 +112,7 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().syncToGithub(); // Auto-save
+                get().saveToDisk(); // Auto-save
             },
 
             // Topic Actions
@@ -124,7 +132,7 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().syncToGithub(); // Auto-save
+                get().saveToDisk(); // Auto-save
             },
 
             // Subtopic Actions
@@ -150,7 +158,7 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().syncToGithub(); // Auto-save
+                get().saveToDisk(); // Auto-save
             },
 
             // Flashcard Actions
@@ -189,15 +197,13 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().syncToGithub(); // Auto-save
+                get().saveToDisk(); // Auto-save
             },
-
-            // Generic Delete (Simplified for now, just filtering deep)
-            // For a real app, we'd want specific delete actions or a recursive delete helper.
-            // I'll add specific deletes if needed, but for now let's rely on the user not making mistakes or add later.
         }),
         {
             name: 'flashrevise-storage',
+            // Omit fsConfig from localStorage persistence as it contains non-serializable data or transient state
+            partialize: (state) => ({ goals: state.goals, currentView: state.currentView }),
         }
     )
 );
