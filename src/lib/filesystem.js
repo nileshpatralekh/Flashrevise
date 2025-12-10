@@ -216,3 +216,44 @@ export async function saveFile(dirHandle, names, filename, content) {
         throw err;
     }
 }
+
+/**
+ * Export data using save picker or fallback download.
+ */
+export async function exportData(content, filename) {
+    // 1. Modern Picker (Chrome/Edge/Android 132+)
+    if (typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: filename,
+                types: [{
+                    description: 'JSON Data',
+                    accept: { 'application/json': ['.json'] },
+                }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            return { success: true, method: 'picker' };
+        } catch (err) {
+            if (err.name === 'AbortError') return { success: false, error: 'cancelled' };
+            console.warn("Save Picker failed, falling back...", err);
+            // Fallthrough to legacy method
+        }
+    }
+
+    // 2. Legacy / Fallback Download
+    try {
+        const blob = new Blob([content], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        return { success: true, method: 'download' };
+    } catch (err) {
+        console.error("Download fallback failed", err);
+        throw err;
+    }
+}
