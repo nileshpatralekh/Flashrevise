@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { generateId } from '../lib/utils.js';
 
 // Import our new filesystem logic
-import { saveToLocalDir, verifyPermission, getDirectoryHandle, deleteItem } from '../lib/filesystem.js';
+import { saveToLocalDir, verifyPermission, getDirectoryHandle, deleteItem, createItem, saveFile } from '../lib/filesystem.js';
 
 // Helper to find item in array
 const find = (arr, id) => arr.find(item => item.id === id);
@@ -137,7 +137,17 @@ export const useStore = create(
             },
 
             // Subject Actions
-            addSubject: (goalId, title) => {
+            addSubject: async (goalId, title) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === goalId);
+
+                // 1. Physical Creation
+                if (goal) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) await createItem(handle, [goal.title, title]);
+                }
+
+                // 2. State Update
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -147,7 +157,7 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk(); // Auto-save
+                get().saveToDisk(); // Still auto-save metadata
             },
 
             deleteSubject: async (goalId, subjectId) => {
@@ -169,7 +179,16 @@ export const useStore = create(
             },
 
             // Topic Actions
-            addTopic: (goalId, subjectId, title) => {
+            addTopic: async (goalId, subjectId, title) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === goalId);
+                const subject = goal?.subjects.find(s => s.id === subjectId);
+
+                if (goal && subject) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) await createItem(handle, [goal.title, subject.title, title]);
+                }
+
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -214,7 +233,17 @@ export const useStore = create(
             },
 
             // Subtopic Actions
-            addSubtopic: (goalId, subjectId, topicId, title) => {
+            addSubtopic: async (goalId, subjectId, topicId, title) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === goalId);
+                const subject = goal?.subjects.find(s => s.id === subjectId);
+                const topic = subject?.topics.find(t => t.id === topicId);
+
+                if (goal && subject && topic) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) await createItem(handle, [goal.title, subject.title, topic.title, title]);
+                }
+
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -273,7 +302,37 @@ export const useStore = create(
             },
 
             // Flashcard Actions
-            addFlashcard: (goalId, subjectId, topicId, subtopicId, front, expansion, image = null) => {
+            addFlashcard: async (goalId, subjectId, topicId, subtopicId, front, expansion, image = null) => {
+                const { goals } = get();
+                const goal = goals.find(g => g.id === goalId);
+                const subject = goal?.subjects.find(s => s.id === subjectId);
+                const topic = subject?.topics.find(t => t.id === topicId);
+                const subtopic = topic?.subtopics.find(st => st.id === subtopicId);
+
+                // Prepare new card logic
+                const newCard = {
+                    id: generateId(),
+                    front,
+                    expansion,
+                    image,
+                    createdAt: Date.now(),
+                    mastery: 0
+                };
+
+                // 1. Physical Save (Append to flashcards.json)
+                if (goal && subject && topic && subtopic) {
+                    const handle = await getDirectoryHandle();
+                    if (handle) {
+                        const updatedCards = [...subtopic.flashcards, newCard];
+                        await saveFile(
+                            handle,
+                            [goal.title, subject.title, topic.title, subtopic.title],
+                            'flashcards.json',
+                            JSON.stringify(updatedCards, null, 2)
+                        );
+                    }
+                }
+
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -291,14 +350,7 @@ export const useStore = create(
                                                 if (st.id !== subtopicId) return st;
                                                 return {
                                                     ...st,
-                                                    flashcards: [...st.flashcards, {
-                                                        id: generateId(),
-                                                        front,
-                                                        expansion,
-                                                        image,
-                                                        createdAt: Date.now(),
-                                                        mastery: 0 // 0-5 scale
-                                                    }]
+                                                    flashcards: [...st.flashcards, newCard]
                                                 };
                                             })
                                         };
@@ -308,7 +360,7 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk(); // Auto-save
+                get().saveToDisk(); // Auto-save metadata
             },
 
             deleteFlashcard: (goalId, subjectId, topicId, subtopicId, cardId) => {
