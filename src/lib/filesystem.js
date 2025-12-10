@@ -3,10 +3,16 @@ import { get, set } from 'idb-keyval';
 // Key for storing the directory handle in IndexedDB
 const DIR_HANDLE_KEY = 'flashrevise_dir_handle';
 
+export const isFileSystemSupported = typeof window !== 'undefined' && 'showDirectoryPicker' in window;
+
 /**
  * Prompt user to select a directory for storage.
  */
 export async function selectDirectory() {
+    if (!isFileSystemSupported) {
+        alert("Your device does not support direct folder access. Using internal storage.");
+        return null;
+    }
     try {
         const dirHandle = await window.showDirectoryPicker();
         try {

@@ -4,7 +4,7 @@ import { Button } from './ui/Button.js';
 import { Input } from './ui/Input.js';
 import { Card } from './ui/Card.js';
 import { Save, RefreshCw, X, CheckCircle, AlertCircle, Folder, Activity } from 'lucide-react';
-import { selectDirectory, diagnoseFileSystem } from '../lib/filesystem.js';
+import { selectDirectory, diagnoseFileSystem, isFileSystemSupported } from '../lib/filesystem.js';
 
 export function Settings({ onClose }) {
     const { fsConfig, saveToDisk, setDirHandle } = useStore();
@@ -69,12 +69,39 @@ export function Settings({ onClose }) {
                         'Select a folder on your device. Your flashcards will be saved there as real nested files.'
                     ),
 
-                    React.createElement(Button, { onClick: handleSelectFolder, className: 'w-full mb-4' },
+                    React.createElement(Button, {
+                        onClick: handleSelectFolder,
+                        className: 'w-full mb-4',
+                        // Disable if not supported, but actually we'll hide it or change behavior below
+                        disabled: !isFileSystemSupported
+                    },
                         React.createElement(Folder, { size: 16, className: 'mr-2' }),
-                        fsConfig.folderName ? 'Change Folder' : 'Select Folder'
+                        isFileSystemSupported
+                            ? (fsConfig.folderName ? 'Change Folder' : 'Select Folder')
+                            : 'Folder Access Not Supported on Android'
                     ),
 
-                    React.createElement('div', { className: 'border-t border-slate-700/50 pt-4 space-y-2' },
+                    !isFileSystemSupported && React.createElement('div', { className: 'mb-4 text-xs text-yellow-400 bg-yellow-500/10 p-3 rounded' },
+                        "Android browsers do not support direct folder access yet. Your data is saved internally in the app. Use 'Export Data' below to backup."
+                    ),
+
+                    // Fallback Export for Android
+                    !isFileSystemSupported && React.createElement(Button, {
+                        onClick: () => {
+                            const data = JSON.stringify(useStore.getState().goals, null, 2);
+                            const blob = new Blob([data], { type: 'application/json' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `flashrevise_backup_${Date.now()}.json`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        },
+                        variant: 'secondary',
+                        className: 'w-full mb-4'
+                    }, React.createElement(Save, { size: 16, className: 'mr-2' }), "Export / Download Data"),
+
+                    isFileSystemSupported && React.createElement('div', { className: 'border-t border-slate-700/50 pt-4 space-y-2' },
                         React.createElement('h4', { className: 'text-xs font-semibold text-slate-500 uppercase tracking-wider' }, 'Diagnostics'),
                         React.createElement(Button, {
                             onClick: handleDiagnose,
