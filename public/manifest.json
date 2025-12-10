@@ -1,27 +1,70 @@
 {
     "name": "FlashRevise",
     "short_name": "FlashRevise",
+    "id": "/Flashrevise/",
     "start_url": "./",
     "display": "standalone",
+    "display_override": [
+        "window-controls-overlay",
+        "minimal-ui"
+    ],
+    "orientation": "portrait",
     "background_color": "#0f172a",
     "theme_color": "#0f172a",
-    "description": "Premium Flashcard App for Revision",
+    "description": "Premium Flashcard App for Revision. Create custom decks, organize vertically, and study offline.",
+    "categories": [
+        "education",
+        "productivity",
+        "study"
+    ],
     "icons": [
         {
-            "src": "./icons/icon-192.png",
+            "src": "icons/icon-192.png",
             "sizes": "192x192",
             "type": "image/png"
         },
         {
-            "src": "./icons/icon-512.png",
+            "src": "icons/icon-512.png",
             "sizes": "512x512",
             "type": "image/png"
         },
         {
-            "src": "./icons/icon-512.png",
+            "src": "icons/icon-512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "any maskable"
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
         }
-    ]
+    ],
+    "screenshots": [
+        {
+            "src": "screenshots/home.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "screenshots/card.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "form_factor": "wide"
+        },
+        {
+            "src": "screenshots/home.png",
+            "sizes": "1024x1024",
+            "type": "image/png",
+            "form_factor": "narrow"
+        }
+    ],
+    "launch_handler": {
+        "client_mode": [
+            "navigate-existing",
+            "auto"
+        ]
+    }
 }
