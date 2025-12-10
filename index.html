@@ -8,22 +8,15 @@
     <meta name="description" content="Premium Flashcard App for Revision" />
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/icon-192.png" />
-    <link rel="manifest" href="./manifest.json" />
     <meta name="theme-color" content="#0f172a" />
 </head>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 
 <body>
     <div id="root"></div>
     <script type="module" src="/src/main.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW registered'))
-                    .catch(err => console.log('SW failed', err));
-            });
-        }
-    </script>
     <!-- Legacy scripts removed in favor of Vite+React -->
 </body>
 

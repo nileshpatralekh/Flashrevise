@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { generateId } from '../lib/utils.js';
 
-// Import our new filesystem logic
-import { saveToLocalDir, verifyPermission, getDirectoryHandle, deleteItem, createItem, saveFile } from '../lib/filesystem.js';
+// Import Google Drive logic
+import { loadGapi, loadGis, handleAuthClick, handleSignoutClick, saveToDrive, loadFromDrive } from '../lib/googleDrive.js';
 
 // Helper to find item in array
 const find = (arr, id) => arr.find(item => item.id === id);
@@ -14,96 +14,97 @@ export const useStore = create(
             goals: [],
             currentView: { type: 'home', id: null }, // Navigation state
 
-            // Local File System State
-            fsConfig: {
-                dirHandle: null, // Note: Handles are not sizable via simple JSON persist, so we rely on fs.js to load it + runtime state
+            // Google Drive State
+            driveConfig: {
+                isInitialized: false,
+                isSignedIn: false,
+                user: null, // Basic profile info if needed
                 isSaving: false,
                 lastSaved: null,
                 error: null,
-                hasPermission: false
             },
 
-            // Action to verify and set the handle
-            setDirHandle: async (handle) => {
-                if (!handle) return;
-                const granted = await verifyPermission(handle);
-                const name = handle.name || "Local Folder";
+            // Initialize Google Services
+            initDrive: async () => {
+                try {
+                    await loadGapi();
+                    await loadGis((tokenResponse) => {
+                        // Callback when token received (SignIn successful)
+                        set(state => ({
+                            driveConfig: { ...state.driveConfig, isSignedIn: true, error: null }
+                        }));
+                        // Auto-load data after sign in
+                        get().syncFromDrive();
+                    });
+
+                    // Check initial sign-in status (approximation, valid token check is complex without user interaction or cached token)
+                    // For now we assume signed out until user clicks Sign In or we have a valid token hook.
+                    set(state => ({
+                        driveConfig: { ...state.driveConfig, isInitialized: true }
+                    }));
+
+                } catch (err) {
+                    console.error("Failed to init Drive", err);
+                    set(state => ({
+                        driveConfig: { ...state.driveConfig, isInitialized: true, error: "Failed to load Google Services" }
+                    }));
+                }
+            },
+
+            signIn: () => {
+                handleAuthClick();
+            },
+
+            signOut: () => {
+                handleSignoutClick();
                 set(state => ({
-                    fsConfig: {
-                        ...state.fsConfig,
-                        dirHandle: handle,
-                        folderName: name,
-                        hasPermission: granted,
-                        error: null
-                    }
+                    driveConfig: { ...state.driveConfig, isSignedIn: false, user: null }
                 }));
             },
 
-            // Attempt to restore handle from IDB on boot
-            restoreHandle: async () => {
-                const { getDirectoryHandle: getFromIDB, verifyPermission } = await import('../lib/filesystem.js');
-                const handle = await getFromIDB();
-                if (handle) {
-                    // We have a stored handle!
-                    // On reload, permission is usually 'prompt', which counts as false for 'hasPermission' until verified
-                    const granted = await verifyPermission(handle, false); // check existing without prompting
-                    const name = handle.name || "Local Folder";
-                    set(state => ({
-                        fsConfig: {
-                            ...state.fsConfig,
-                            dirHandle: handle,
-                            folderName: name,
-                            hasPermission: granted,
-                            error: null
+            // Load data from Drive overwriting local state
+            syncFromDrive: async () => {
+                const { driveConfig } = get();
+                // if (!driveConfig.isSignedIn) return; // Strict check?
+
+                try {
+                    const data = await loadFromDrive('flashrevise_data.json');
+                    if (data) {
+                        try {
+                            const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+                            if (Array.isArray(parsed)) {
+                                set({ goals: parsed });
+                                console.log("Synced from Drive:", parsed);
+                            }
+                        } catch (e) {
+                            console.warn("Invalid data from Drive", e);
                         }
-                    }));
+                    }
+                } catch (err) {
+                    console.error("Sync from Drive failed", err);
+                    // set(state => ({ driveConfig: { ...state.driveConfig, error: "Sync failed" } }));
                 }
             },
 
-            // REPLACES syncToGithub
-            saveToDisk: async (manualHandle = null) => {
-                // 1. Try to use manual handle (e.g. from Settings select)
-                // 2. Or use the one currently in state
-                // 3. Or try to fetch from IDB as last resort
-                let handle = manualHandle || get().fsConfig.dirHandle;
+            // Save all goals to a single JSON file on Drive
+            saveToCloud: async () => {
+                const { goals, driveConfig } = get();
+                if (!driveConfig.isSignedIn) return;
 
-                if (!handle) {
-                    try {
-                        const { getDirectoryHandle } = await import('../lib/filesystem.js');
-                        handle = await getDirectoryHandle();
-                    } catch (e) {
-                        console.warn("IDB fetch failed", e);
-                    }
-                }
-
-                if (!handle) {
-                    set(state => ({ fsConfig: { ...state.fsConfig, error: "No folder selected" } }));
-                    return;
-                }
-
-                // Verify permission again (just in case)
-                const granted = await verifyPermission(handle);
-                if (!granted) {
-                    set(state => ({ fsConfig: { ...state.fsConfig, hasPermission: false, error: "Permission needed" } }));
-                    return;
-                }
-
-                const { goals } = get();
-                set(state => ({ fsConfig: { ...state.fsConfig, isSaving: true, error: null } }));
+                set(state => ({ driveConfig: { ...state.driveConfig, isSaving: true, error: null } }));
 
                 try {
-                    await saveToLocalDir(handle, goals);
+                    await saveToDrive('flashrevise_data.json', goals);
                     set(state => ({
-                        fsConfig: {
-                            ...state.fsConfig,
-                            lastSaved: Date.now(),
+                        driveConfig: {
+                            ...state.driveConfig,
                             isSaving: false,
-                            hasPermission: true
+                            lastSaved: Date.now()
                         }
                     }));
                 } catch (err) {
-                    console.error("Save error:", err);
-                    set(state => ({ fsConfig: { ...state.fsConfig, isSaving: false, error: err.message } }));
+                    console.error("Save to Drive failed", err);
+                    set(state => ({ driveConfig: { ...state.driveConfig, isSaving: false, error: err.message } }));
                 }
             },
 
@@ -115,35 +116,18 @@ export const useStore = create(
                 set((state) => ({
                     goals: [...state.goals, { id: generateId(), title, subjects: [], createdAt: Date.now() }]
                 }));
-                get().saveToDisk(); // Auto-save
+                get().saveToCloud(); // Auto-save
             },
 
             deleteGoal: async (id) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === id);
-                if (goal) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) await deleteItem(handle, [goal.title]);
-                }
-
                 set((state) => ({
                     goals: state.goals.filter(g => g.id !== id)
                 }));
-                get().saveToDisk(); // Update app_data.json
+                get().saveToCloud();
             },
 
             // Subject Actions
             addSubject: async (goalId, title) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === goalId);
-
-                // 1. Physical Creation
-                if (goal) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) await createItem(handle, [goal.title, title]);
-                }
-
-                // 2. State Update
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -153,38 +137,21 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk(); // Still auto-save metadata
+                get().saveToCloud();
             },
 
             deleteSubject: async (goalId, subjectId) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === goalId);
-                const subject = goal?.subjects.find(s => s.id === subjectId);
-                if (goal && subject) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) await deleteItem(handle, [goal.title, subject.title]);
-                }
-
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
                         return { ...g, subjects: g.subjects.filter(s => s.id !== subjectId) };
                     })
                 }));
-                get().saveToDisk();
+                get().saveToCloud();
             },
 
             // Topic Actions
             addTopic: async (goalId, subjectId, title) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === goalId);
-                const subject = goal?.subjects.find(s => s.id === subjectId);
-
-                if (goal && subject) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) await createItem(handle, [goal.title, subject.title, title]);
-                }
-
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -200,19 +167,10 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk(); // Auto-save
+                get().saveToCloud();
             },
 
             deleteTopic: async (goalId, subjectId, topicId) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === goalId);
-                const subject = goal?.subjects.find(s => s.id === subjectId);
-                const topic = subject?.topics.find(t => t.id === topicId);
-                if (goal && subject && topic) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) await deleteItem(handle, [goal.title, subject.title, topic.title]);
-                }
-
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -225,21 +183,11 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk();
+                get().saveToCloud();
             },
 
             // Subtopic Actions
             addSubtopic: async (goalId, subjectId, topicId, title) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === goalId);
-                const subject = goal?.subjects.find(s => s.id === subjectId);
-                const topic = subject?.topics.find(t => t.id === topicId);
-
-                if (goal && subject && topic) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) await createItem(handle, [goal.title, subject.title, topic.title, title]);
-                }
-
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -261,21 +209,10 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk(); // Auto-save
+                get().saveToCloud();
             },
 
             deleteSubtopic: async (goalId, subjectId, topicId, subtopicId) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === goalId);
-                const subject = goal?.subjects.find(s => s.id === subjectId);
-                const topic = subject?.topics.find(t => t.id === topicId);
-                const subtopic = topic?.subtopics.find(st => st.id === subtopicId);
-
-                if (goal && subject && topic && subtopic) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) await deleteItem(handle, [goal.title, subject.title, topic.title, subtopic.title]);
-                }
-
                 set((state) => ({
                     goals: state.goals.map(g => {
                         if (g.id !== goalId) return g;
@@ -294,18 +231,11 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk();
+                get().saveToCloud();
             },
 
             // Flashcard Actions
             addFlashcard: async (goalId, subjectId, topicId, subtopicId, front, expansion, image = null) => {
-                const { goals, fsConfig } = get();
-                const goal = goals.find(g => g.id === goalId);
-                const subject = goal?.subjects.find(s => s.id === subjectId);
-                const topic = subject?.topics.find(t => t.id === topicId);
-                const subtopic = topic?.subtopics.find(st => st.id === subtopicId);
-
-                // Prepare new card logic
                 const newCard = {
                     id: generateId(),
                     front,
@@ -314,20 +244,6 @@ export const useStore = create(
                     createdAt: Date.now(),
                     mastery: 0
                 };
-
-                // 1. Physical Save (Append to flashcards.json)
-                if (goal && subject && topic && subtopic) {
-                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
-                    if (handle) {
-                        const updatedCards = [...subtopic.flashcards, newCard];
-                        await saveFile(
-                            handle,
-                            [goal.title, subject.title, topic.title, subtopic.title],
-                            'flashcards.json',
-                            JSON.stringify(updatedCards, null, 2)
-                        );
-                    }
-                }
 
                 set((state) => ({
                     goals: state.goals.map(g => {
@@ -356,7 +272,7 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk(); // Auto-save metadata
+                get().saveToCloud();
             },
 
             deleteFlashcard: (goalId, subjectId, topicId, subtopicId, cardId) => {
@@ -387,12 +303,11 @@ export const useStore = create(
                         };
                     })
                 }));
-                get().saveToDisk();
+                get().saveToCloud();
             },
         }),
         {
             name: 'flashrevise-storage',
-            // Omit fsConfig from localStorage persistence as it contains non-serializable data or transient state
             partialize: (state) => ({ goals: state.goals, currentView: state.currentView }),
         }
     )
