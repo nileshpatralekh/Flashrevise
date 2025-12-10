@@ -100,5 +100,36 @@
                 ]
             }
         }
-    ]
+    ],
+    "protocol_handlers": [
+        {
+            "protocol": "web+flashrevise",
+            "url": "./?action=protocol&target=%s"
+        }
+    ],
+    "widgets": [
+        {
+            "name": "Quick Study",
+            "description": "Quickly access your flashcards",
+            "tag": "quick-study",
+            "template": "widget",
+            "ms_ac_template": "widget.json",
+            "data": "widget_data.json",
+            "type": "application/json",
+            "screenshots": [
+                {
+                    "src": "screenshots/card.png",
+                    "sizes": "1024x1024",
+                    "label": "Widget View"
+                }
+            ]
+        }
+    ],
+    "edge_side_panel": {
+        "preferred_width": 400
+    },
+    "note_taking": {
+        "new_note_url": "./?action=new_note"
+    }
 }
+```
