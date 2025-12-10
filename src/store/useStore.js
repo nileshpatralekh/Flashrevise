@@ -62,22 +62,18 @@ export const useStore = create(
 
             // REPLACES syncToGithub
             saveToDisk: async (manualHandle = null) => {
-                // We either use the passed handle (from user selection) or the one we might re-hydrate (if complex IDB logic allowed)
-                // For this MVP, we need the UI to provide the handle usually, or we retrieve it from IDB at boot.
-                // But handles cannot be stored in Zustand persist (localStorage). They must live in IndexedDB.
-                // We rely on the component or init logic to call setDirHandle with the object from `filesystem.js`.
+                // 1. Try to use manual handle (e.g. from Settings select)
+                // 2. Or use the one currently in state
+                // 3. Or try to fetch from IDB as last resort
+                let handle = manualHandle || get().fsConfig.dirHandle;
 
-                // NOTE: We cannot easily get the handle from state if it's not serializable. 
-                // We should fetch it from `filesystem.js` helper if needed, or pass it in.
-                // A better pattern: The handle lives in a module-level variable in filesystem.js or we retrieve it from IDB here.
-
-                // Let's assume we retrieve it fresh to ensure we have the complex object.
-                let handle = manualHandle;
-
-                // If not provided, try to get from our IDB helper (purely for the object reference)
                 if (!handle) {
-                    const { getDirectoryHandle } = await import('../lib/filesystem.js');
-                    handle = await getDirectoryHandle();
+                    try {
+                        const { getDirectoryHandle } = await import('../lib/filesystem.js');
+                        handle = await getDirectoryHandle();
+                    } catch (e) {
+                        console.warn("IDB fetch failed", e);
+                    }
                 }
 
                 if (!handle) {
@@ -123,10 +119,10 @@ export const useStore = create(
             },
 
             deleteGoal: async (id) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === id);
                 if (goal) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) await deleteItem(handle, [goal.title]);
                 }
 
@@ -138,12 +134,12 @@ export const useStore = create(
 
             // Subject Actions
             addSubject: async (goalId, title) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === goalId);
 
                 // 1. Physical Creation
                 if (goal) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) await createItem(handle, [goal.title, title]);
                 }
 
@@ -161,11 +157,11 @@ export const useStore = create(
             },
 
             deleteSubject: async (goalId, subjectId) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === goalId);
                 const subject = goal?.subjects.find(s => s.id === subjectId);
                 if (goal && subject) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) await deleteItem(handle, [goal.title, subject.title]);
                 }
 
@@ -180,12 +176,12 @@ export const useStore = create(
 
             // Topic Actions
             addTopic: async (goalId, subjectId, title) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === goalId);
                 const subject = goal?.subjects.find(s => s.id === subjectId);
 
                 if (goal && subject) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) await createItem(handle, [goal.title, subject.title, title]);
                 }
 
@@ -208,12 +204,12 @@ export const useStore = create(
             },
 
             deleteTopic: async (goalId, subjectId, topicId) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === goalId);
                 const subject = goal?.subjects.find(s => s.id === subjectId);
                 const topic = subject?.topics.find(t => t.id === topicId);
                 if (goal && subject && topic) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) await deleteItem(handle, [goal.title, subject.title, topic.title]);
                 }
 
@@ -234,13 +230,13 @@ export const useStore = create(
 
             // Subtopic Actions
             addSubtopic: async (goalId, subjectId, topicId, title) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === goalId);
                 const subject = goal?.subjects.find(s => s.id === subjectId);
                 const topic = subject?.topics.find(t => t.id === topicId);
 
                 if (goal && subject && topic) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) await createItem(handle, [goal.title, subject.title, topic.title, title]);
                 }
 
@@ -269,14 +265,14 @@ export const useStore = create(
             },
 
             deleteSubtopic: async (goalId, subjectId, topicId, subtopicId) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === goalId);
                 const subject = goal?.subjects.find(s => s.id === subjectId);
                 const topic = subject?.topics.find(t => t.id === topicId);
                 const subtopic = topic?.subtopics.find(st => st.id === subtopicId);
 
                 if (goal && subject && topic && subtopic) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) await deleteItem(handle, [goal.title, subject.title, topic.title, subtopic.title]);
                 }
 
@@ -303,7 +299,7 @@ export const useStore = create(
 
             // Flashcard Actions
             addFlashcard: async (goalId, subjectId, topicId, subtopicId, front, expansion, image = null) => {
-                const { goals } = get();
+                const { goals, fsConfig } = get();
                 const goal = goals.find(g => g.id === goalId);
                 const subject = goal?.subjects.find(s => s.id === subjectId);
                 const topic = subject?.topics.find(t => t.id === topicId);
@@ -321,7 +317,7 @@ export const useStore = create(
 
                 // 1. Physical Save (Append to flashcards.json)
                 if (goal && subject && topic && subtopic) {
-                    const handle = await getDirectoryHandle();
+                    const handle = fsConfig.dirHandle || await getDirectoryHandle();
                     if (handle) {
                         const updatedCards = [...subtopic.flashcards, newCard];
                         await saveFile(
