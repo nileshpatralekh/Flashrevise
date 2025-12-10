@@ -4,7 +4,7 @@ import { Button } from './ui/Button.js';
 import { Input } from './ui/Input.js';
 import { Card } from './ui/Card.js';
 import { Save, RefreshCw, X, CheckCircle, AlertCircle, Folder, Activity } from 'lucide-react';
-import { selectDirectory, diagnoseFileSystem, isFileSystemSupported } from '../lib/filesystem.js';
+import { selectDirectory, diagnoseFileSystem, isFileSystemSupported, exportData } from '../lib/filesystem.js';
 
 export function Settings({ onClose }) {
     const { fsConfig, saveToDisk, setDirHandle } = useStore();
@@ -12,29 +12,15 @@ export function Settings({ onClose }) {
 
     const handleSelectFolder = async () => {
         try {
-            alert("Starting folder selection...");
             const handle = await selectDirectory();
-            alert(`Selected: ${handle ? handle.name : 'NULL'}`);
-
             if (handle) {
-                alert("Setting handle to store...");
                 await setDirHandle(handle);
-                alert("Handle set. Verifying...");
-
-                // Direct access check
-                if (useStore.getState().fsConfig.dirHandle) {
-                    alert("Store confirms handle is present.");
-                } else {
-                    alert("ERROR: Store handle is MISSING after set!");
-                }
-
                 await saveToDisk(handle);
-            } else {
-                alert("Selection cancelled or failed.");
             }
         } catch (err) {
-            alert(`Selection Error: ${err.message}`);
             console.error(err);
+            // Alert only on real errors now, not debugging flow
+            alert(`Selection Error: ${err.message}`);
         }
     };
 
@@ -87,15 +73,20 @@ export function Settings({ onClose }) {
 
                     // Fallback Export for Android
                     !isFileSystemSupported && React.createElement(Button, {
-                        onClick: () => {
+                        onClick: async () => {
                             const data = JSON.stringify(useStore.getState().goals, null, 2);
-                            const blob = new Blob([data], { type: 'application/json' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `flashrevise_backup_${Date.now()}.json`;
-                            a.click();
-                            URL.revokeObjectURL(url);
+                            const filename = `flashrevise_backup_${Date.now()}.json`;
+
+                            try {
+                                const result = await exportData(data, filename);
+                                if (result.success && result.method === 'picker') {
+                                    alert("Backup saved successfully to your chosen folder!");
+                                } else if (result.success) {
+                                    alert("Backup downloaded to your Downloads folder.");
+                                }
+                            } catch (e) {
+                                alert("Export failed: " + e.message);
+                            }
                         },
                         variant: 'secondary',
                         className: 'w-full mb-4'
