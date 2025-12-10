@@ -11,10 +11,30 @@ export function Settings({ onClose }) {
     const [diagLog, setDiagLog] = useState(null);
 
     const handleSelectFolder = async () => {
-        const handle = await selectDirectory();
-        if (handle) {
-            await setDirHandle(handle);
-            saveToDisk(handle); // Initial save/test
+        try {
+            alert("Starting folder selection...");
+            const handle = await selectDirectory();
+            alert(`Selected: ${handle ? handle.name : 'NULL'}`);
+
+            if (handle) {
+                alert("Setting handle to store...");
+                await setDirHandle(handle);
+                alert("Handle set. Verifying...");
+
+                // Direct access check
+                if (useStore.getState().fsConfig.dirHandle) {
+                    alert("Store confirms handle is present.");
+                } else {
+                    alert("ERROR: Store handle is MISSING after set!");
+                }
+
+                await saveToDisk(handle);
+            } else {
+                alert("Selection cancelled or failed.");
+            }
+        } catch (err) {
+            alert(`Selection Error: ${err.message}`);
+            console.error(err);
         }
     };
 

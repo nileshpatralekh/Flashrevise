@@ -9,7 +9,12 @@ const DIR_HANDLE_KEY = 'flashrevise_dir_handle';
 export async function selectDirectory() {
     try {
         const dirHandle = await window.showDirectoryPicker();
-        await set(DIR_HANDLE_KEY, dirHandle);
+        try {
+            await set(DIR_HANDLE_KEY, dirHandle);
+        } catch (idbErr) {
+            console.warn("IDB Save Failed (ignoring):", idbErr);
+            alert("Warning: Could not save handle to database. App will work for this session only.");
+        }
         return dirHandle;
     } catch (err) {
         if (err.name === 'AbortError') {
