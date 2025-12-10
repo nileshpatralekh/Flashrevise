@@ -66,5 +66,39 @@
             "navigate-existing",
             "auto"
         ]
-    }
+    },
+    "shortcuts": [
+        {
+            "name": "Add Goal",
+            "short_name": "Add Goal",
+            "description": "Create a new learning goal",
+            "url": "./?action=add_goal",
+            "icons": [
+                {
+                    "src": "icons/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ],
+    "share_target": {
+        "action": "./?action=share_target",
+        "method": "GET",
+        "enctype": "application/x-www-form-urlencoded",
+        "params": {
+            "title": "title",
+            "text": "text",
+            "url": "url"
+        }
+    },
+    "file_handlers": [
+        {
+            "action": "./?action=open_file",
+            "accept": {
+                "application/json": [
+                    ".json"
+                ]
+            }
+        }
+    ]
 }
